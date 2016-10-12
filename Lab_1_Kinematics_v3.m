@@ -1,16 +1,35 @@
+%Lab 1:
 %Forward and inverse kinematics of a crane
+%Nathan Pilbrough & Blake Madruga
 
-%q = joint parameters: change ONLY these to change the system, 4 variables
-% = 4 DOF
-theta1 = -pi/4; 
-zdist2 = 5; % 1 <= zdist2 <= 10
+%q = joint parameters: 
+theta1 = -2*pi/3; 
+zdist2 = 10; % 1 <= zdist2 <= 10
 zdist3 = 20; % 0 <= zdist3 <= 20
-theta4 = 0;
+theta4 = pi/3;
 
 q = [theta1,zdist2,zdist3,theta4];
-index = [0];
+index = [0,1,2,3,4];    % this allows you to specify which joint movements are computed
+smoothing = 1;          % this specified whether the joints are actuated 
+                        % all at once (= 1) or if the actation is performed
+                        % one joint at at a time
 for ele = index
 
+if(smoothing==1)  
+if(ele==0)
+   q  = [0,1,0,0];
+elseif(ele==1)
+   q  = [theta1/4,zdist2/4,zdist3/4,theta4/4];
+elseif(ele==2)
+   q  = [theta1/2,zdist2/2,zdist3/2,theta4/2];
+elseif(ele==3)
+   q  = [3*theta1/4,3*zdist2/4,3*zdist3/4,3*theta4/4];
+elseif(ele==4)
+   q  = [theta1,zdist2,zdist3,theta4];
+end
+
+else
+    
 if(ele==0)
    q  = [0,1,0,0];
 elseif(ele==1)
@@ -21,6 +40,7 @@ elseif(ele==3)
    q  = [theta1,zdist2,zdist3,0];
 elseif(ele==4)
    q  = [theta1,zdist2,zdist3,theta4];
+end
 end
    
 %Denavit-Hartenberg Parameters:
@@ -40,7 +60,7 @@ T12 = Transform(DH(2,:));       %T2 from T1
 T23 = Transform(DH(3,:));       %T3 from T2
 T34 = Transform(DH(4,:));       %T4 from T3
 
-T04 = T01*T12*T23*T34           %T4 in base frame transform
+T04 = T01*T12*T23*T34;           %T4 in base frame transform
 
 unitv = eye(4); %define the unit vectors on each axis 
 
@@ -69,7 +89,8 @@ l4origin = P03(1:3,4).';
 
 P0origin = zeros(3);
 P0T = eye(3);
-    
+
+% ray matrices for creating the diagrams
 unitvrays = [
   P0origin  P0T;
   P01origin P01T;
@@ -84,20 +105,21 @@ linkrays = [
     l4origin l4
     ];
 
+%logic computing the trajectory of the end effector
 if(ele==0)
     endEffOri0 = P04origin;
     endEffVect0 = P04origin - P04origin;
     trajrays = [
         endEffOri0 endEffVect0
-        ]
+        ];
 elseif(ele==1)
-    endEffOri1 = endEffOri0 + endEffVect0
+    endEffOri1 = endEffOri0 + endEffVect0;
     endEffVect1 = P04origin - endEffOri0;
     trajrays = [
         endEffOri1 endEffVect1
         ];
 elseif(ele==2)
-    endEffOri2 = endEffOri1 + endEffVect1
+    endEffOri2 = endEffOri1 + endEffVect1;
     endEffVect2 = P04origin - endEffOri1 - endEffVect1;
     trajrays = [
         endEffOri2 endEffVect2
@@ -114,8 +136,7 @@ elseif(ele==4)
     trajrays = [
         endEffOri4 endEffVect4
         ];
-end
-%trajrays = 
+end 
 
 % quiver plot
 quiver3( unitvrays( :,1 ), unitvrays( :,2 ), unitvrays( :,3 ), unitvrays( :,4 ), unitvrays( :,5 ), unitvrays( :,6 ),0,'Color',[.6 0 0]);
@@ -124,7 +145,11 @@ quiver3( linkrays( :,1 ), linkrays( :,2 ), linkrays( :,3 ), linkrays( :,4 ), lin
 quiver3( trajrays( :,1 ), trajrays( :,2 ), trajrays( :,3 ), trajrays( :,4 ), trajrays( :,5 ), trajrays( :,6 ),0,'Color',[0 0 .6]);
 
 title('Kinematic representation of the crane');
-axis([-11 11 -11 11 -22 1]);
+%axis([-11 11 -11 11 -22 1]);
+axis([-11 5 -11 1 -22 1]); %static axis, these should be changed according to best suit the applicaiton
+xlabel('X axis');
+ylabel('Y axis');
+zlabel('Z axis');
 end
 %----------------------
 %-----Inverse Kinematics-----%
@@ -132,8 +157,8 @@ end
 % to an object of interest, involving the following tasks:
 
 q1rad = atan2(T04(2,4),T04(1,4)); %rotation of the main boom to an object's position
-q1 = rad2deg(q1rad) 
-q2 = sqrt((T04(2,4)^2)+T04(1,4)^2) %Position the linear trolley to object
+q1 = rad2deg(q1rad); 
+q2 = sqrt((T04(2,4)^2)+T04(1,4)^2); %Position the linear trolley to object
 
 q3sol1rad = -(asin(T04(1,1))-q1rad); % Rotation of end effector to optimal position for object
 q3sol1 = rad2deg(q3sol1rad);
@@ -143,22 +168,25 @@ q3sol2rad = -(-pi-asin(T04(1,1))-q1rad);
 q3sol2 = rad2deg(-(-pi-asin(T04(1,1))-q1rad));
 checkmat2 = Check(T04(1:2,1:2),(q1rad-q3sol2rad));
 
+%logic to determine which trig angle is correct
 if (checkmat1 == 1)
-    q3 = q3sol1
+    q3 = q3sol1;
 elseif(checkmat2 == 1)
     if (q3sol2 >180)
-        q3 = 360 - q3sol2
+        q3 = 360 - q3sol2;
     else
-        q3 = q3sol2
+        q3 = q3sol2;
     end
     
 end
 
-q4 = -T04(3,4) - DH(4,4) %Lower jaws of gripper into place
+q4 = -T04(3,4) - DH(4,4) ;%Lower jaws of gripper into place
 
-rad2deg(theta1-theta4);
+outputq = [q1,q2,q3,q4];
+disp('The q parameters calculated via inverse kinematics:');
+disp(outputq);
 
-
+%funciton to chcek one matrix against another
 function check = Check(A,theta)
 check = 0;
 B = [sin(theta)  -cos(theta);
@@ -175,6 +203,7 @@ end
 
 end
 
+%funciton to perform the DH transform for given parameters 
 function Tn = Transform(DH)
 Tn =  [cos(DH(1,1)) -sin(DH(1,1))*cos(DH(1,2)) sin(DH(1,1))*sin(DH(1,2))  DH(1,3)*cos(DH(1,1));
        sin(DH(1,1)) cos(DH(1,1))*cos(DH(1,2))  -cos(DH(1,1))*sin(DH(1,2)) DH(1,3)*sin(DH(1,1));
